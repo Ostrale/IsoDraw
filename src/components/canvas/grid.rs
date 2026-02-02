@@ -2,7 +2,7 @@ use super::frames::*;
 use super::utils::*;
 use dioxus::prelude::*;
 
-const GRID_SIZE: f64 = 30.0;
+pub const GRID_SIZE: f64 = 30.0;
 
 #[derive(Clone, PartialEq)]
 struct GridLines {
@@ -51,7 +51,10 @@ fn calculate_visible_grid(
     ];
 
     // Convertir tous les coins en coordonnées cartésiennes
-    let cart_coords: Vec<_> = corners.iter().map(|(x, y)| from_iso(*x, *y)).collect();
+    let cart_coords: Vec<CartCoord> = corners
+        .iter()
+        .map(|(x, y)| IsoCoord { x: *x, y: *y }.into())
+        .collect();
 
     // Trouver les limites min/max sur tous les coins
     let cart_min_x = cart_coords
@@ -97,8 +100,9 @@ fn calculate_visible_grid(
             let y_min = cart_min_y - extension;
             let y_max = cart_max_y + extension;
 
-            let start = to_iso(x, y_min, 0.0);
-            let end = to_iso(x, y_max, 0.0);
+            let start: IsoCoord = CartCoord { x: x, y: y_min, z: 0.0 }.into();
+            let end: IsoCoord = CartCoord { x: x, y: y_max, z: 0.0 }.into();
+
             (start.x, start.y, end.x, end.y)
         })
         .collect();
@@ -111,8 +115,8 @@ fn calculate_visible_grid(
             let x_min = cart_min_x - extension;
             let x_max = cart_max_x + extension;
 
-            let start = to_iso(x_min, y, 0.0);
-            let end = to_iso(x_max, y, 0.0);
+            let start: IsoCoord = CartCoord { x: x_min, y, z: 0.0 }.into();
+            let end: IsoCoord = CartCoord { x: x_max, y, z: 0.0 }.into();
             (start.x, start.y, end.x, end.y)
         })
         .collect();
@@ -142,7 +146,7 @@ pub fn IsometricGrid(
 
     rsx! {
         g {
-            stroke: "#e0e0e0",
+            stroke: "#b2b2b2",
             stroke_width: "{0.5 / zoom.read().0}",
 
             // Lignes verticales

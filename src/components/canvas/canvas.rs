@@ -5,6 +5,12 @@ use super::models::*;
 use super::utils::*;
 use dioxus::prelude::*;
 
+enum PointerState {
+    Circle,
+    Cube,
+    None,
+}
+
 #[component]
 pub fn Pointer(mouse: Signal<MousePos>, pan: Signal<Pan>, zoom: Signal<Zoom>) -> Element {
     let mouse_pos = *mouse.read();
@@ -15,15 +21,37 @@ pub fn Pointer(mouse: Signal<MousePos>, pan: Signal<Pan>, zoom: Signal<Zoom>) ->
         zoom.read().0,
     );
 
-    rsx! {
-        circle {
-            cx: "{x_svg}",
-            cy: "{y_svg}",
-            r: "{5.0 / zoom.read().0}",
-            fill: "#00ff88",
-            stroke: "black",
-            stroke_width: "{1.5 / zoom.read().0}"
-        }
+    let pointer_state_signal = use_context::<Signal<PointerState>>();
+    let pointer_state = pointer_state_signal.read();
+
+    match *pointer_state {
+        PointerState::Cube => rsx! {
+            ShapePolygon {
+                shape: Shape::new(
+                    0,
+                    IsoCoord::new(x_svg, y_svg).into(),
+                    Dimensions::new(1, 1, 1),
+                    "#aa99aa".to_string()
+                ).with_style(ShapeStyle::new(
+                     "#aa99aa".to_string(),  // couleur de remplissage
+                     "black".to_string(),
+                     0.3,                    // sans bordure
+                     0.4,                    // bordure transparente
+                     0.6,                    // remplissage semi-transparent
+                 ))
+            },
+        },
+        PointerState::Circle => rsx! {
+            circle {
+                cx: "{x_svg}",
+                cy: "{y_svg}",
+                r: "{5.0 / zoom.read().0}",
+                fill: "#00ff88",
+                stroke: "black",
+                stroke_width: "{1.5 / zoom.read().0}"
+            },
+        },
+        PointerState::None => rsx! {},
     }
 }
 
@@ -39,37 +67,39 @@ pub fn Canvas() -> Element {
     let zoom = use_signal(|| Zoom(1.0));
     let is_panning = use_signal(|| false);
 
-    let shapes = use_signal(|| {
+    //
+    let mut pointer_state = use_signal(|| PointerState::Circle);
+    use_context_provider(|| pointer_state);
+
+    let shapes: Signal<Vec<Shape>> = use_signal(|| {
         vec![
-            Shape {
-                id: 1,
-                x: 150.0,
-                y: 100.0,
-                z: 0.0,
-                width: 100.0,
-                height: 100.0,
-                depth: 0.0,
-                color: "#FF6B6B".to_string(),
-            },
-            Shape {
-                id: 2,
-                x: 110.0,
-                y: 140.0,
-                z: 0.0,
-                width: 150.0,
-                height: 150.0,
-                depth: 0.0,
-                color: "#4ECDC4".to_string(),
-            },
+            Shape::new(
+                3,
+                GridCoord { x: 20, y: 1 },
+                Dimensions::new(2, 2, 1),
+                "#FF6B6B".to_string(),
+            ),
+            Shape::new(
+                2,
+                GridCoord { x: 20, y: 0 },
+                Dimensions::new(1, 1, 3),
+                "#FF6B6B".to_string(),
+            ),
+            Shape::new(
+                1,
+                GridCoord { x: 19, y: 0 },
+                Dimensions::new(1, 1, 9),
+                "#AE6B6B".to_string(),
+            ),
         ]
     });
 
     rsx! {
         svg {
             width: "100%",
-            height: "80vh",
+            height: "95vh",
             style: "border: 0px solid #ccc; background: #f9fafb;",
-            view_box: "0 0 {canvas_size.read().width} {canvas_size.read().height}",
+            //view_box: "0 0 {canvas_size.read().width} {canvas_size.read().height}",
 
             // Resize Event
             onresize: handle_resize(canvas_size),
@@ -89,16 +119,38 @@ pub fn Canvas() -> Element {
         }
 
         div {
-            style: "margin-top: 15px; padding: 10px; background: #f9fafb; font-family: monospace; font-size: 12px;",
-            "Mouse: {mouse.read().x:.1} {mouse.read().y:.1}"
-            br {}
-            "Pan: {pan.read().x:.1} {pan.read().y:.1}"
-            br {}
-            "Zoom: {zoom.read().0:.2}"
-            br {}
-            "is_panning : {is_panning}"
-            br {}
-            "canvas_size: {canvas_size.read().width} X {canvas_size.read().height}"
+            style: "padding: 10px; background: #f0f0f0; display: flex; gap: 10px; margin-bottom: 10px;",
+
+            button {
+                onclick: move |_| *pointer_state.write() = PointerState::Circle,
+                style: "padding: 8px 16px; cursor: pointer;",
+                "Circle"
+            }
+
+            button {
+                onclick: move |_| *pointer_state.write() = PointerState::Cube,
+                style: "padding: 8px 16px; cursor: pointer;",
+                "Cube"
+            }
+
+            button {
+                onclick: move |_| *pointer_state.write() = PointerState::None,
+                style: "padding: 8px 16px; cursor: pointer;",
+                "None"
+            }
         }
+
+        // div {
+        //     style: "margin-top: 15px; padding: 10px; background: #f9fafb; font-family: monospace; font-size: 12px;",
+        //     "Mouse: {mouse.read().x:.1} {mouse.read().y:.1}"
+        //     br {}
+        //     "Pan: {pan.read().x:.1} {pan.read().y:.1}"
+        //     br {}
+        //     "Zoom: {zoom.read().0:.2}"
+        //     br {}
+        //     "is_panning : {is_panning}"
+        //     br {}
+        //     "canvas_size: {canvas_size.read().width} X {canvas_size.read().height}"
+        // }
     }
 }
